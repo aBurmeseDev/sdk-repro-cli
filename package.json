@@ -1,8 +1,11 @@
 {
   "name": "create-sdk-reproduction",
   "version": "1.0.0",
-  "description": "creates SDK repro environment via CLI",
+  "description": "CLI tool to create SDK reproducible environment",
   "main": "index.js",
+  "bin": {
+    "create-aws-sdk-env": "index.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -17,6 +20,8 @@
   },
   "homepage": "https://github.com/aBurmeseDev/create-sdk-reproduction#readme",
   "dependencies": {
+    "@aws-sdk/client-bedrock-agent-runtime": "^3.678.0",
+    "axios": "^1.7.7",
     "prompts": "^2.4.2"
   }
 }

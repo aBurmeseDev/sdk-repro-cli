@@ -3,6 +3,13 @@
 const prompts = require('prompts');
 const fs = require('fs');
 const path = require('path');
+const { BedrockAgentRuntimeClient, RetrieveCommand } = require('@aws-sdk/client-bedrock-agent-runtime');
+
+const awsServices = [
+  { title: 'S3', value: '@aws-sdk/client-s3' },
+  { title: 'DynamoDB', value: '@aws-sdk/client-dynamodb' },
+  // Add more services here
+];
 
 const questions = [
   {
@@ -23,12 +30,60 @@ const questions = [
     initial: 0
   },
   {
+    type: 'select',
+    name: 'service',
+    message: 'Select the AWS service you want to work with:',
+    choices: awsServices,
+    initial: 0
+  },
+  {
+    type: 'text',
+    name: 'operation',
+    message: 'Enter the service operation you want an example for:',
+    validate: value => value !== '' ? true : 'Please enter a service operation'
+  },
+  {
+    type: 'text',
+    name: 'region',
+    message: 'Enter the AWS region (leave blank for us-west-1):',
+    initial: 'us-west-1'
+  },
+  {
     type: 'confirm',
     name: 'includeExamples',
     message: 'Include AWS SDK examples?',
     initial: true
   }
 ];
+
+const client = new BedrockAgentRuntimeClient({});
+
+async function getExampleCode(service, operation) {
+  const knowledgeBaseId = 'YOUR_KNOWLEDGE_BASE_ID';
+  const retrievalQuery = `write an example of JavaScript SDK v3 code for the ${service} service and ${operation} operation`;
+
+  const input = {
+    knowledgeBaseId,
+    retrievalQuery: {
+      text: retrievalQuery,
+    },
+  };
+
+  const command = new RetrieveCommand(input);
+
+  try {
+    const response = await client.send(command);
+    if (response.retrievalResult && response.retrievalResult.text) {
+      return response.retrievalResult.text;
+    } else {
+      console.error('No example code found in the response');
+      return null;
+    }
+  } catch (error) {
+    console.error('Error fetching example code:', error);
+    return null;
+  }
+}
 
 (async () => {
   const answers = await prompts(questions);
@@ -42,10 +97,10 @@ const questions = [
   const packageJson = {
     name: answers.projectName,
     version: '1.0.0',
-    description: 'AWS SDK for JavaScript v3 project',
+    description: `AWS SDK for JavaScript v3 project for ${answers.service}`,
     main: 'index.js',
     dependencies: {
-      '@aws-sdk/client-s3': 'latest'
+      [answers.service]: 'latest'
     },
     scripts: {
       start: 'node index.js'
@@ -54,26 +109,29 @@ const questions = [
 
   fs.writeFileSync(path.join(projectDir, 'package.json'), JSON.stringify(packageJson, null, 2));
 
-  let indexJs = `const { S3Client } = require('@aws-sdk/client-s3');
+  let indexJs;
+  const serviceClient = answers.service.split('-').pop().replace('Client', '').toLowerCase();
 
-const client = new S3Client({ region: 'us-east-1' });
+  if (answers.environment === 'node') {
+    indexJs = `import { ${serviceClient} } from '${answers.service}';
+
+const client = new ${serviceClient}({ region: '${answers.region}' });
 
 // Add your AWS SDK v3 code here
 `;
-
-  if (answers.environment === 'browser') {
+  } else if (answers.environment === 'browser') {
     indexJs = `<script>
-import { S3Client } from '@aws-sdk/client-s3';
+import { ${serviceClient} } from '${answers.service}';
 
-const client = new S3Client({ region: 'us-east-1' });
+const client = new ${serviceClient}({ region: '${answers.region}' });
 
 // Add your AWS SDK v3 code here
 </script>
 `;
   } else if (answers.environment === 'react-native') {
-    indexJs = `import { S3Client } from '@aws-sdk/client-s3';
+    indexJs = `import { ${serviceClient} } from '${answers.service}';
 
-const client = new S3Client({ region: 'us-east-1' });
+const client = new ${serviceClient}({ region: '${answers.region}' });
 
 // Add your AWS SDK v3 code here
 `;
@@ -85,23 +143,31 @@ const client = new S3Client({ region: 'us-east-1' });
     const examplesDir = path.join(projectDir, 'examples');
     fs.mkdirSync(examplesDir);
 
-    const listBucketsExample = `const { S3Client, ListBucketsCommand } = require('@aws-sdk/client-s3');
+    // Fetch example code from Bedrock RetrieveCommand
+    const exampleCode = await getExampleCode(answers.service.split('/').pop(), answers.operation);
 
-const client = new S3Client({ region: 'us-east-1' });
+    if (exampleCode) {
+      const exampleFileName = `${answers.service.split('/').pop()}-${answers.operation}-example.js`;
+      fs.writeFileSync(path.join(examplesDir, exampleFileName), exampleCode);
+      console.log(`Example code for ${answers.service} ${answers.operation} has been written to ${exampleFileName}`);
+    } else {
+      console.log(`No example code found for ${answers.service} ${answers.operation}`);
 
-const listBuckets = async () => {
-  try {
-    const data = await client.send(new ListBucketsCommand({}));
-    console.log('Success', data.Buckets);
-  } catch (err) {
-    console.log('Error', err);
-  }
+      // Include default SDK example
+      const operationName = answers.operation.replace(/([a-z])([A-Z])/g, '$1$2').toLowerCase();
+      const defaultExampleCode = `import { ${serviceClient}, ${answers.operation}Command } from '${answers.service}';
+const client = new ${serviceClient}({ region: '${answers.region}' });
+const input = { // ${answers.operation}Input
+
 };
-
-listBuckets();
+const command = new ${answers.operation}Command(input);
+const response = await client.send(command);
 `;
 
-    fs.writeFileSync(path.join(examplesDir, 'list-buckets.js'), listBucketsExample);
+      const exampleFileName = `${answers.service.split('/').pop()}-${answers.operation}-example.js`;
+      fs.writeFileSync(path.join(examplesDir, exampleFileName), defaultExampleCode);
+      console.log(`Default example code for ${answers.service} ${answers.operation} has been written to ${exampleFileName}`);
+    }
   }
 
   console.log(`Project "${answers.projectName}" has been created successfully!`);
