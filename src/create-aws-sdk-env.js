@@ -8,6 +8,9 @@ const path = require('path');
 const awsServices = [
   { title: 'S3', value: '@aws-sdk/client-s3' },
   { title: 'DynamoDB', value: '@aws-sdk/client-dynamodb' },
+  { title: 'EC2', value: '@aws-sdk/client-ec2' },
+  { title: 'IAM', value: '@aws-sdk/client-iam' },
+  { title: 'Lambda', value: '@aws-sdk/client-lambda' },
   // Add more services here
 ];
 
@@ -64,7 +67,7 @@ const client = new BedrockRuntimeClient({
 
 async function getExampleCode(service, operation) {
   const knowledgeBase = "You are a software developer with expertise in developing AWS SDK";
-  const retrievalQuery = `write an example of JavaScript SDK v3 code for the ${service} service and ${operation} operation and only return the code part in .js file format`;
+  const retrievalQuery = `write an example of JavaScript SDK v3 code for the ${service} service and ${operation} operation and only return javascript code, nothing else.`;
   const input = {
     "modelId": "anthropic.claude-3-5-sonnet-20240620-v1:0",
     "contentType": "application/json",
