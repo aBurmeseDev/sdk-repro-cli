@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 
-const { BedrockRuntimeClient, ConverseCommand } = require("@aws-sdk/client-bedrock-runtime"); 
+const { BedrockRuntimeClient, ConverseCommand } = require("@aws-sdk/client-bedrock-runtime");
 const prompts = require('prompts');
 const fs = require('fs');
 const path = require('path');
-
 
 const awsServices = [
   { title: 'S3', value: '@aws-sdk/client-s3' },
@@ -66,20 +65,20 @@ const client = new BedrockRuntimeClient({
 async function getExampleCode(service, operation) {
   const knowledgeBase = "You are a software developer with expertise in developing AWS SDK";
   const retrievalQuery = `write an example of JavaScript SDK v3 code for the ${service} service and ${operation} operation and only return the code part in .js file format`;
-  const input = { 
-    "modelId": "anthropic.claude-3-5-sonnet-20240620-v1:0", 
+  const input = {
+    "modelId": "anthropic.claude-3-5-sonnet-20240620-v1:0",
     "contentType": "application/json",
-  "messages": [
+    "messages": [
       {
-          "role": "user",
-          "content": [
-              {
-                  "text": retrievalQuery,
-              }
-          ]
+        "role": "user",
+        "content": [
+          {
+            "text": retrievalQuery,
+          }
+        ]
       }
-  ],
-  "system": [{"text" : knowledgeBase}],
+    ],
+    "system": [{ "text": knowledgeBase }],
   }
 
   const command = new ConverseCommand(input);
@@ -112,6 +111,7 @@ async function getExampleCode(service, operation) {
     version: '1.0.0',
     description: `AWS SDK for JavaScript v3 project for ${answers.service}`,
     main: 'index.js',
+    type: 'module',
     dependencies: {
       [answers.service]: 'latest'
     },
@@ -122,32 +122,29 @@ async function getExampleCode(service, operation) {
 
   fs.writeFileSync(path.join(projectDir, 'package.json'), JSON.stringify(packageJson, null, 2));
 
+  const selectedService = awsServices.find(service => service.value === answers.service);
+  const serviceClient = `${selectedService.title}Client`;
+
   let indexJs;
-  const serviceClient = answers.service.split('-').pop().replace('Client', '').toLowerCase();
+  const operationName = answers.operation.replace(/([a-z])([A-Z])/g, '$1$2').toLowerCase();
+  const defaultExampleCode = `import { ${serviceClient}, ${answers.operation}Command } from '${answers.service}';
+const client = new ${serviceClient}({ region: '${answers.region}' });
+const input = { // ${answers.operation}Input
+
+};
+const command = new ${answers.operation}Command(input); // check SDK docs for command name casing
+const response = await client.send(command);
+console.log(response);
+`;
 
   if (answers.environment === 'node') {
-    indexJs = `import { ${serviceClient} } from '${answers.service}';
-
-const client = new ${serviceClient}({ region: '${answers.region}' });
-
-// Add your AWS SDK v3 code here
-`;
+    indexJs = defaultExampleCode;
   } else if (answers.environment === 'browser') {
     indexJs = `<script>
-import { ${serviceClient} } from '${answers.service}';
-
-const client = new ${serviceClient}({ region: '${answers.region}' });
-
-// Add your AWS SDK v3 code here
-</script>
-`;
+${defaultExampleCode}
+</script>`;
   } else if (answers.environment === 'react-native') {
-    indexJs = `import { ${serviceClient} } from '${answers.service}';
-
-const client = new ${serviceClient}({ region: '${answers.region}' });
-
-// Add your AWS SDK v3 code here
-`;
+    indexJs = defaultExampleCode;
   }
 
   fs.writeFileSync(path.join(projectDir, 'index.js'), indexJs);
@@ -160,22 +157,11 @@ const client = new ${serviceClient}({ region: '${answers.region}' });
     const exampleCode = await getExampleCode(answers.service.split('-').pop(), answers.operation);
 
     if (exampleCode) {
-      const exampleFileName = `${answers.service.split('-').pop()}-${answers.operation}-example.js`;
+      const exampleFileName = `${answers.service.split('-').pop()}${answers.operation}-example.js`;
       fs.writeFileSync(path.join(examplesDir, exampleFileName), exampleCode);
       console.log(`Example code for ${answers.service} ${answers.operation} has been written to ${exampleFileName}`);
     } else {
       console.log(`No example code found for ${answers.service} ${answers.operation}`);
-
-      // Include default SDK example
-      const operationName = answers.operation.replace(/([a-z])([A-Z])/g, '$1$2').toLowerCase();
-      const defaultExampleCode = `import { ${serviceClient}, ${answers.operation}Command } from '${answers.service}';
-const client = new ${serviceClient}({ region: '${answers.region}' });
-const input = { // ${answers.operation}Input
-
-};
-const command = new ${answers.operation}Command(input); // check SDK docs for command name casing
-const response = await client.send(command);
-`;
 
       const exampleFileName = `${answers.service.split('/').pop()}-${answers.operation}-example.js`;
       fs.writeFileSync(path.join(examplesDir, exampleFileName), defaultExampleCode);
