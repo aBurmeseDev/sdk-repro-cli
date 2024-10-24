@@ -20,7 +20,7 @@
   },
   "homepage": "https://github.com/aBurmeseDev/create-sdk-reproduction#readme",
   "dependencies": {
-    "@aws-sdk/client-bedrock-agent-runtime": "^3.678.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.678.0",
     "axios": "^1.7.7",
     "prompts": "^2.4.2"
   }

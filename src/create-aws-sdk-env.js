@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
+const { BedrockRuntimeClient, ConverseCommand } = require("@aws-sdk/client-bedrock-runtime"); 
 const prompts = require('prompts');
 const fs = require('fs');
 const path = require('path');
-const { BedrockAgentRuntimeClient, RetrieveCommand } = require('@aws-sdk/client-bedrock-agent-runtime');
+
 
 const awsServices = [
   { title: 'S3', value: '@aws-sdk/client-s3' },
@@ -16,7 +17,8 @@ const questions = [
     type: 'text',
     name: 'projectName',
     message: 'Enter a name for your project:',
-    validate: value => value !== '' ? true : 'Please enter a project name'
+    validate: value => value !== '' ? true : 'Please enter a project name',
+    initial: `sdk-repro${Date.now()}`,
   },
   {
     type: 'select',
@@ -40,7 +42,8 @@ const questions = [
     type: 'text',
     name: 'operation',
     message: 'Enter the service operation you want an example for:',
-    validate: value => value !== '' ? true : 'Please enter a service operation'
+    validate: value => value !== '' ? true : 'Please enter a service operation',
+    initial: 'Example: ListBuckets',
   },
   {
     type: 'text',
@@ -56,25 +59,35 @@ const questions = [
   }
 ];
 
-const client = new BedrockAgentRuntimeClient({});
+const client = new BedrockRuntimeClient({
+  region: "us-west-2"
+});
 
 async function getExampleCode(service, operation) {
-  const knowledgeBaseId = 'YOUR_KNOWLEDGE_BASE_ID';
-  const retrievalQuery = `write an example of JavaScript SDK v3 code for the ${service} service and ${operation} operation`;
+  const knowledgeBase = "You are a software developer with expertise in developing AWS SDK";
+  const retrievalQuery = `write an example of JavaScript SDK v3 code for the ${service} service and ${operation} operation and only return the code part in .js file format`;
+  const input = { 
+    "modelId": "anthropic.claude-3-5-sonnet-20240620-v1:0", 
+    "contentType": "application/json",
+  "messages": [
+      {
+          "role": "user",
+          "content": [
+              {
+                  "text": retrievalQuery,
+              }
+          ]
+      }
+  ],
+  "system": [{"text" : knowledgeBase}],
+  }
 
-  const input = {
-    knowledgeBaseId,
-    retrievalQuery: {
-      text: retrievalQuery,
-    },
-  };
-
-  const command = new RetrieveCommand(input);
+  const command = new ConverseCommand(input);
 
   try {
     const response = await client.send(command);
-    if (response.retrievalResult && response.retrievalResult.text) {
-      return response.retrievalResult.text;
+    if (response.output.message.content) {
+      return response.output.message.content[0].text;
     } else {
       console.error('No example code found in the response');
       return null;
@@ -143,11 +156,11 @@ const client = new ${serviceClient}({ region: '${answers.region}' });
     const examplesDir = path.join(projectDir, 'examples');
     fs.mkdirSync(examplesDir);
 
-    // Fetch example code from Bedrock RetrieveCommand
-    const exampleCode = await getExampleCode(answers.service.split('/').pop(), answers.operation);
+    // Fetch example code from Bedrock ConverseCommand
+    const exampleCode = await getExampleCode(answers.service.split('-').pop(), answers.operation);
 
     if (exampleCode) {
-      const exampleFileName = `${answers.service.split('/').pop()}-${answers.operation}-example.js`;
+      const exampleFileName = `${answers.service.split('-').pop()}-${answers.operation}-example.js`;
       fs.writeFileSync(path.join(examplesDir, exampleFileName), exampleCode);
       console.log(`Example code for ${answers.service} ${answers.operation} has been written to ${exampleFileName}`);
     } else {
@@ -160,7 +173,7 @@ const client = new ${serviceClient}({ region: '${answers.region}' });
 const input = { // ${answers.operation}Input
 
 };
-const command = new ${answers.operation}Command(input);
+const command = new ${answers.operation}Command(input); // check SDK docs for command name casing
 const response = await client.send(command);
 `;
 
