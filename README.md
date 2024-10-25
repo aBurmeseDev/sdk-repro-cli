@@ -30,7 +30,8 @@ To run the project, navigate to the project directory and run:
 - However, for simple operation like S3 ListBuckets, you can run `npm start` straight away since minimal code example is already scripted.
 
 ## Recording of an Example 
-![Screen Recording](https://github.com/user-attachments/assets/71904f6d-32d5-4297-9fca-f7a7120f3664)
+![sdk-repro-cli](https://github.com/user-attachments/assets/2716fdef-7deb-4361-b07e-5dd765c8e26f)
+
 
 
 ## LICENSE
