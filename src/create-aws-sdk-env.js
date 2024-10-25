@@ -109,21 +109,21 @@ async function getExampleCode(service, operation) {
     fs.mkdirSync(projectDir);
   }
 
-  const packageJson = {
-    name: answers.projectName,
-    version: '1.0.0',
-    description: `AWS SDK for JavaScript v3 project for ${answers.service}`,
-    main: 'index.js',
-    type: 'module',
-    dependencies: {
-      [answers.service]: 'latest'
-    },
-    scripts: {
-      start: 'node index.js'
-    }
-  };
+  // const packageJson = {
+  //   name: answers.projectName,
+  //   version: '1.0.0',
+  //   description: `AWS SDK for JavaScript v3 project for ${answers.service}`,
+  //   main: 'index.js',
+  //   type: 'module',
+  //   dependencies: {
+  //     [answers.service]: 'latest'
+  //   },
+  //   scripts: {
+  //     start: 'node index.js'
+  //   }
+  // };
 
-  fs.writeFileSync(path.join(projectDir, 'package.json'), JSON.stringify(packageJson, null, 2));
+  // fs.writeFileSync(path.join(projectDir, 'package.json'), JSON.stringify(packageJson, null, 2));
 
   const selectedService = awsServices.find(service => service.value === answers.service);
   const serviceClient = `${selectedService.title}Client`;
@@ -146,16 +146,88 @@ const response = await client.send(command);
 console.log(response);
 `;
 
-  if (answers.environment === 'node') {
-    indexJs = defaultExampleCode;
-  } else if (answers.environment === 'browser') {
-    indexJs = `<script>
-${defaultExampleCode}
-</script>`;
-  } else if (answers.environment === 'react-native') {
-    indexJs = defaultExampleCode;
-  }
+if (answers.environment === 'node') {
+  indexJs = defaultExampleCode;
+  const packageJson = {
+    name: answers.projectName,
+    version: '1.0.0',
+    description: `AWS SDK for JavaScript v3 project for ${answers.service}`,
+    main: 'index.js',
+    type: 'module',
+    dependencies: {
+      [answers.service]: 'latest'
+    },
+    scripts: {
+      start: 'node index.js'
+    }
+  };
+  fs.writeFileSync(path.join(projectDir, 'package.json'), JSON.stringify(packageJson, null, 2));
+} else if (answers.environment === 'browser') {
+  indexJs = `import { ${serviceClient}, ${answers.operation}Command } from '${answers.service}';
 
+const getHTMLElement = (title, content) => {
+const element = document.createElement("div");
+element.style.margin = "30px";
+
+const titleDiv = document.createElement("div");
+titleDiv.innerHTML = title;
+const contentDiv = document.createElement("textarea");
+contentDiv.rows = 20;
+contentDiv.cols = 50;
+contentDiv.innerHTML = content;
+
+element.appendChild(titleDiv);
+element.appendChild(contentDiv);
+
+return element;
+};
+
+const component = async () => {
+const client = new ${serviceClient}({
+  region: '${answers.region}',
+  credentials: { // replace with AWS credentials
+    // accessKeyId: '', 
+    // secretAccessKey: '',
+  },
+});
+const input = { // ${answers.operation}Input
+
+};
+const command = new ${answers.operation}Command(input); // check SDK docs for command name casing
+const response = await client.send(command);
+console.log(response);
+
+return getHTMLElement(
+  "Data returned by v3:",
+  JSON.stringify(response, null, 2)
+);
+};
+
+(async () => {
+document.body.appendChild(await component());
+})();`;
+
+  const packageJson = {
+    name: answers.projectName,
+    version: '1.0.0',
+    description: `AWS SDK for JavaScript v3 project for ${answers.service}`,
+    private: true,
+    main: 'index.js',
+    scripts: {
+      start: 'vite --open'
+    },
+    devDependencies: {
+      vite: 'latest'
+    },
+    dependencies: {
+      [answers.service]: 'latest'
+    }
+  };
+  fs.writeFileSync(path.join(projectDir, 'package.json'), JSON.stringify(packageJson, null, 2));
+
+} else if (answers.environment === 'react-native') {
+  indexJs = defaultExampleCode;
+}
   fs.writeFileSync(path.join(projectDir, 'index.js'), indexJs);
 
   if (answers.includeExamples) {
@@ -186,7 +258,8 @@ ${defaultExampleCode}
     console.log('  npm install');
     console.log('  npm start');
   } else if (answers.environment === 'browser') {
-    console.log('  Open index.js in a web browser');
+    console.log('  npm install');
+    console.log('  npm run start');
   } else if (answers.environment === 'react-native') {
     console.log('  Follow the React Native setup instructions to run the project');
   }
