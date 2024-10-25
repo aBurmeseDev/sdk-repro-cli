@@ -131,7 +131,13 @@ async function getExampleCode(service, operation) {
   let indexJs;
   const operationName = answers.operation.replace(/([a-z])([A-Z])/g, '$1$2').toLowerCase();
   const defaultExampleCode = `import { ${serviceClient}, ${answers.operation}Command } from '${answers.service}';
-const client = new ${serviceClient}({ region: '${answers.region}' });
+const client = new ${serviceClient}({
+  region: '${answers.region}',
+  credentials: { // replace with AWS credentials
+    // accessKeyId: '', 
+    // secretAccessKey: '',
+  },
+});
 const input = { // ${answers.operation}Input
 
 };
